@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 랭킹</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0; /* 배경 색상 */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #e0e0e0;
+        }
+        .crown {
+            width: 20px;
+            height: 20px;
+            vertical-align: middle;
+        }
+        .rank-card {
+            display: inline-block;
+            border: 2px solid #ccc;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 10px;
+            text-align: center;
+            width: 200px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            background-color: #ffffff; /* 카드 배경 색상 */
+            transition: transform 0.3s; /* 카드 호버 효과 */
+        }
+        .rank-card:hover {
+            transform: scale(1.05); /* 카드 확대 효과 */
+        }
+        .first-place {
+            border-color: gold;
+            background-color: #fffbcc; /* 1등 카드 배경 색상 */
+        }
+        .second-place {
+            border-color: silver;
+            background-color: #f0f0f0; /* 2등 카드 배경 색상 */
+        }
+        .third-place {
+            border-color: #cd7f32; /* 브론즈 색 */
+            background-color: #f5e6d2; /* 3등 카드 배경 색상 */
+        }
+        h2 {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>실시간 랭킹</h1>
+
+    <!-- 사용자 추가 및 금액 수정 폼 -->
+    <form id="rankingForm" style="text-align: center;">
+        <label for="name">이름:</label>
+        <input type="text" id="name" required>
+        <label for="amount">금액:</label>
+        <input type="number" id="amount" required>
+        <button type="submit">추가 / 수정</button>
+        <button type="button" id="deleteButton">삭제</button> <!-- 삭제 버튼 추가 -->
+    </form>
+
+    <h2>최고 랭커</h2>
+    <div id="topRanks" style="display: flex; justify-content: center; flex-wrap: wrap;">
+        <!-- 여기에 1등, 2등, 3등 카드가 표시됩니다 -->
+    </div>
+
+    <h2>랭킹표</h2>
+    <table id="rankingTable">
+        <thead>
+            <tr>
+                <th>순위</th>
+                <th>이름</th>
+                <th>금액</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 여기에서 실시간으로 업데이트될 내용 -->
+        </tbody>
+    </table>
+
+    <script>
+        const rankingForm = document.getElementById('rankingForm');
+        const rankingTableBody = document.querySelector('#rankingTable tbody');
+        const deleteButton = document.getElementById('deleteButton');
+        const topRanksDiv = document.getElementById('topRanks');
+        let rankings = JSON.parse(localStorage.getItem('rankings')) || [];
+
+        // 폼 제출 시 이름과 금액을 배열에 추가 또는 수정
+        rankingForm.addEventListener('submit', function(event) {
+            event.preventDefault(); // 페이지 새로고침 방지
+
+            const name = document.getElementById('name').value;
+            const amount = parseInt(document.getElementById('amount').value);
+
+            if (name && amount) {
+                const existingEntry = rankings.find(entry => entry.name === name);
+
+                if (existingEntry) {
+                    existingEntry.amount = amount;
+                    alert(`${name}의 금액이 ${amount}(으)로 수정되었습니다.`);
+                } else {
+                    rankings.push({ name, amount });
+                    alert(`${name}이(가) 새로 추가되었습니다.`);
+                }
+
+                saveRankings();
+                updateRanking();
+                rankingForm.reset();
+            }
+        });
+
+        // 삭제 버튼 클릭 시 이름을 기반으로 삭제 기능 추가
+        deleteButton.addEventListener('click', function() {
+            const name = document.getElementById('name').value;
+
+            if (name) {
+                const index = rankings.findIndex(entry => entry.name === name);
+                
+                if (index !== -1) {
+                    rankings.splice(index, 1);
+                    alert(`${name}의 데이터가 삭제되었습니다.`);
+                    saveRankings();
+                    updateRanking();
+                    rankingForm.reset();
+                } else {
+                    alert(`${name}의 데이터를 찾을 수 없습니다.`);
+                }
+            } else {
+                alert('이름을 입력해주세요.');
+            }
+        });
+
+        function saveRankings() {
+            localStorage.setItem('rankings', JSON.stringify(rankings));
+        }
+
+        function updateRanking() {
+            rankings.sort((a, b) => b.amount - a.amount);
+            rankingTableBody.innerHTML = '';
+            topRanksDiv.innerHTML = ''; // 카드 초기화
+
+            // 최고 순위 표시를 위한 카드 생성
+            rankings.slice(0, 3).forEach((entry, index) => {
+                const card = document.createElement('div');
+                card.className = 'rank-card ' + (index === 0 ? 'first-place' : (index === 1 ? 'second-place' : 'third-place'));
+                card.innerHTML = `
+                    <h3>${index + 1}위</h3>
+                    <p>${entry.name}</p>
+                    <p>${entry.amount.toLocaleString()} 원</p>
+                `;
+                topRanksDiv.appendChild(card);
+            });
+
+            let currentRank = 1;  
+            let previousAmount = null;
+
+            rankings.forEach((entry, index) => {
+                let rank;
+                if (previousAmount !== null && previousAmount === entry.amount) {
+                    rank = currentRank;
+                } else {
+                    currentRank = index + 1;
+                    rank = currentRank;
+                }
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${rank}</td>
+                    <td>${entry.name}</td>
+                    <td>${entry.amount.toLocaleString()}</td>
+                `;
+                rankingTableBody.appendChild(row);
+
+                previousAmount = entry.amount;
+            });
+        }
+
+        window.onload = function() {
+            updateRanking();
+        };
+    </script>
+</body>
+</html>
