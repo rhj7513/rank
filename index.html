@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>실시간 랭킹</title>
     <style>
+        /* 기존 스타일 */
         body {
             font-family: Arial, sans-serif;
             margin: 50px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            background-color: #f0f0f0; /* 배경 색상 */
+            background-color: #f0f0f0;
         }
         table {
             width: 100%;
@@ -28,11 +29,6 @@
         th {
             background-color: #e0e0e0;
         }
-        .crown {
-            width: 20px;
-            height: 20px;
-            vertical-align: middle;
-        }
         .rank-card {
             display: inline-block;
             border: 2px solid #ccc;
@@ -42,26 +38,43 @@
             text-align: center;
             width: 200px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            background-color: #ffffff; /* 카드 배경 색상 */
-            transition: transform 0.3s; /* 카드 호버 효과 */
+            background-color: #ffffff;
+            transition: transform 0.3s;
         }
         .rank-card:hover {
-            transform: scale(1.05); /* 카드 확대 효과 */
+            transform: scale(1.05);
         }
         .first-place {
             border-color: gold;
-            background-color: #fffbcc; /* 1등 카드 배경 색상 */
+            background-color: #fffbcc;
         }
         .second-place {
             border-color: silver;
-            background-color: #f0f0f0; /* 2등 카드 배경 색상 */
+            background-color: #f0f0f0;
         }
         .third-place {
-            border-color: #cd7f32; /* 브론즈 색 */
-            background-color: #f5e6d2; /* 3등 카드 배경 색상 */
+            border-color: #cd7f32;
+            background-color: #f5e6d2;
         }
         h2 {
             margin-bottom: 10px;
+        }
+        #saveButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none; /* 기본적으로 숨김 */
+        }
+        #saveButton:hover {
+            background-color: #45a049;
+        }
+        #fileUpload {
+            display: none; /* 기본적으로 숨김 */
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -75,13 +88,11 @@
         <label for="amount">금액:</label>
         <input type="number" id="amount" required>
         <button type="submit">추가 / 수정</button>
-        <button type="button" id="deleteButton">삭제</button> <!-- 삭제 버튼 추가 -->
+        <button type="button" id="deleteButton">삭제</button>
     </form>
 
     <h2>최고 랭커</h2>
-    <div id="topRanks" style="display: flex; justify-content: center; flex-wrap: wrap;">
-        <!-- 여기에 1등, 2등, 3등 카드가 표시됩니다 -->
-    </div>
+    <div id="topRanks" style="display: flex; justify-content: center; flex-wrap: wrap;"></div>
 
     <h2>랭킹표</h2>
     <table id="rankingTable">
@@ -92,21 +103,32 @@
                 <th>금액</th>
             </tr>
         </thead>
-        <tbody>
-            <!-- 여기에서 실시간으로 업데이트될 내용 -->
-        </tbody>
+        <tbody></tbody>
     </table>
+
+    <!-- 엑셀 파일 저장 버튼 (기본적으로 숨김) -->
+    <button id="saveButton">엑셀 파일로 저장</button>
+
+    <!-- 엑셀 파일 업로드 -->
+    <!-- <h2>엑셀 파일 업로드</h2> -->
+    <input type="file" id="fileUpload" accept=".xlsx, .xls">
+
+    <!-- SheetJS 라이브러리 추가 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <script>
         const rankingForm = document.getElementById('rankingForm');
         const rankingTableBody = document.querySelector('#rankingTable tbody');
         const deleteButton = document.getElementById('deleteButton');
         const topRanksDiv = document.getElementById('topRanks');
+        const saveButton = document.getElementById('saveButton');
+        const nameInput = document.getElementById('name');
+        const fileUpload = document.getElementById('fileUpload');
         let rankings = JSON.parse(localStorage.getItem('rankings')) || [];
 
         // 폼 제출 시 이름과 금액을 배열에 추가 또는 수정
         rankingForm.addEventListener('submit', function(event) {
-            event.preventDefault(); // 페이지 새로고침 방지
+            event.preventDefault();
 
             const name = document.getElementById('name').value;
             const amount = parseInt(document.getElementById('amount').value);
@@ -149,6 +171,71 @@
             }
         });
 
+        // 이름 입력값이 "admin" 또는 "ADMIN"일 때 엑셀 저장 버튼 및 업로드 버튼 표시
+        nameInput.addEventListener('input', function() {
+            const nameValue = nameInput.value.trim().toLowerCase();
+            if (nameValue === 'admin') {
+                saveButton.style.display = 'inline-block';
+                fileUpload.style.display = 'inline-block'; // 파일 업로드 버튼 표시
+            } else {
+                saveButton.style.display = 'none';
+                fileUpload.style.display = 'none'; // 파일 업로드 버튼 숨김
+            }
+        });
+
+        // 엑셀 파일을 테이블에 로드하는 기능
+        fileUpload.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+
+            if (!file) {
+                alert('파일을 선택해주세요.');
+                return;
+            }
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                // rankings 배열을 초기화하고, 엑셀 데이터로 채운다
+                rankings = [];
+
+                // 열의 헤더를 찾기 위한 인덱스
+                let nameIndex = -1;
+                let amountIndex = -1;
+
+                // 헤더에서 "이름"과 "금액"의 인덱스를 찾음
+                rows[0].forEach((header, index) => {
+                    if (header === '이름') {
+                        nameIndex = index;
+                    } else if (header === '금액') {
+                        amountIndex = index;
+                    }
+                });
+
+                // 유효한 인덱스가 있는 경우에만 데이터를 추가
+                if (nameIndex !== -1 && amountIndex !== -1) {
+                    // 각 행을 순회하며 데이터 추가
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (row[nameIndex] && typeof row[amountIndex] === 'number') {
+                            rankings.push({ name: row[nameIndex], amount: row[amountIndex] });
+                        }
+                    }
+                } else {
+                    alert('엑셀 파일에서 "이름" 또는 "금액" 열을 찾을 수 없습니다.');
+                }
+
+                saveRankings();
+                updateRanking();
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
+
         function saveRankings() {
             localStorage.setItem('rankings', JSON.stringify(rankings));
         }
@@ -158,7 +245,6 @@
             rankingTableBody.innerHTML = '';
             topRanksDiv.innerHTML = ''; // 카드 초기화
 
-            // 최고 순위 표시를 위한 카드 생성
             rankings.slice(0, 3).forEach((entry, index) => {
                 const card = document.createElement('div');
                 card.className = 'rank-card ' + (index === 0 ? 'first-place' : (index === 1 ? 'second-place' : 'third-place'));
@@ -197,6 +283,13 @@
         window.onload = function() {
             updateRanking();
         };
+
+        // 엑셀 파일 저장 기능 구현 (SheetJS 사용)
+        saveButton.addEventListener('click', function() {
+            const table = document.getElementById('rankingTable');
+            const wb = XLSX.utils.table_to_book(table, { sheet: "Ranking" });
+            XLSX.writeFile(wb, 'ranking.xlsx');
+        });
     </script>
 </body>
 </html>
