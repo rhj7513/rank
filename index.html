@@ -33,10 +33,11 @@
             display: inline-block;
             border: 2px solid #ccc;
             border-radius: 15px;
-            padding: 20px;
+            padding: 70px;
             margin: 10px;
             text-align: center;
             width: 200px;
+            height: 180px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             background-color: #ffffff;
             transition: transform 0.3s;
@@ -249,9 +250,9 @@
                 const card = document.createElement('div');
                 card.className = 'rank-card ' + (index === 0 ? 'first-place' : (index === 1 ? 'second-place' : 'third-place'));
                 card.innerHTML = `
-                    <h3>${index + 1}위</h3>
-                    <p>${entry.name}</p>
-                    <p>${entry.amount.toLocaleString()} 원</p>
+                    <h1 style="margin-top: -50px; margin-bottom:60px">${index + 1}위</h1>
+                    <p style="font-size: 50px; font-weight: bold;">${entry.name}</p>
+                    <p style="margin-top: -20px; font-size: 25px;">${entry.amount.toLocaleString()} 원</p>
                 `;
                 topRanksDiv.appendChild(card);
             });
